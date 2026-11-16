@@ -22,10 +22,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     );
   }
 
-  // 2. If no token exists or token is invalid -> Redirect to appropriate login page
+  // 2. If no token exists or token is invalid -> Redirect to unified login page
   if (!storedToken || (!isAuthenticated && isInitialized)) {
-    const isAdminPath = location.pathname.startsWith('/admin');
-    return <Navigate to={isAdminPath ? '/admin/login' : '/login'} replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // 3. Role authorization check

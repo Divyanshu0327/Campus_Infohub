@@ -11,7 +11,10 @@ const EditProfileModal = ({ user, isOpen, onClose }) => {
     bio: user?.bio || '',
     skills: user?.skills || '',
     location: user?.location || '',
-    avatar: user?.avatar || ''
+    avatar: user?.avatar || '',
+    current_company: user?.current_company || user?.organization || '',
+    designation: user?.designation || '',
+    previous_company: user?.previous_company || ''
   });
 
   const handleChange = (e) => {
@@ -44,7 +47,7 @@ const EditProfileModal = ({ user, isOpen, onClose }) => {
                 className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden flex flex-col max-h-[90vh]"
             >
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <h2 className="text-xl font-serif font-bold text-slate-800">Edit Profile</h2>
+                    <h2 className="text-xl font-serif font-bold text-slate-800">Edit Profile & Experience</h2>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                         <X size={20} />
                     </button>
@@ -78,6 +81,44 @@ const EditProfileModal = ({ user, isOpen, onClose }) => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 required
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Current Company</label>
+                                <input 
+                                    type="text" 
+                                    name="current_company"
+                                    value={formData.current_company}
+                                    onChange={handleChange}
+                                    placeholder="e.g. Google, TCS, Microsoft"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Current Designation</label>
+                                <input 
+                                    type="text" 
+                                    name="designation"
+                                    value={formData.designation}
+                                    onChange={handleChange}
+                                    placeholder="e.g. Software Engineer"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Previous Companies / Work Experience</label>
+                            <input 
+                                type="text" 
+                                name="previous_company"
+                                value={formData.previous_company}
+                                onChange={handleChange}
+                                placeholder="e.g. TCS (2021-2023), Infosys (2023-2025)"
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                             />
                         </div>

@@ -176,12 +176,12 @@ const AdminDashboard = () => {
                     delay={0.2}
                 />
                 <StatCard 
-                    title="Pending Users" 
-                    value={currentStats.pendingApprovals} 
+                    title="Pending Approvals" 
+                    value={currentStats.pendingApprovals + (currentStats.pendingAlumni || 0)} 
                     icon={UserCheck} 
                     colorClass="from-rose-400 to-rose-600"
-                    trend={currentStats.pendingApprovals > 0 ? 'Requires attention' : 'All clear'}
-                    maxValue={Math.max(currentStats.pendingApprovals, 10)}
+                    trend={`${currentStats.pendingApprovals} Students, ${currentStats.pendingAlumni || 0} Alumni`}
+                    maxValue={Math.max(currentStats.pendingApprovals + (currentStats.pendingAlumni || 0), 10)}
                     delay={0.3}
                 />
                 <StatCard 

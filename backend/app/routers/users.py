@@ -36,7 +36,7 @@ def update_user_me(
 
     update_data = user_update.dict(exclude_unset=True)
 
-    profile_fields = {"bio", "skills", "location", "avatar"}
+    profile_fields = {"bio", "skills", "location", "avatar", "current_company", "designation", "previous_company"}
     user_fields = set(update_data.keys()) - profile_fields
 
     # Update Student/Admin table fields

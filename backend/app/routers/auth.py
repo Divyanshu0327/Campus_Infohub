@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas, utils, database
 from ..limiter import limiter
-from ..email_service import send_otp_email
+from ..email_service import send_otp_email, send_alumni_approval_email, send_alumni_rejection_email
 
 router = APIRouter(tags=["Authentication"])
 
@@ -215,6 +215,57 @@ def student_login(
             "id": admin.id,
         }
 
+    # 3. Check Alumni Table (dedicated alumni directory accounts)
+    alumni_user = db.query(models.Alumni).filter(
+        func.lower(models.Alumni.email) == clean_identifier
+    ).first()
+
+    if alumni_user:
+        # Block if no password was set (old records before password field was added)
+        if not alumni_user.password:
+            utils.verify_password(user_credentials.password, DUMMY_HASH)  # timing mitigation
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your alumni account does not have a portal password set. Please contact the administration.",
+            )
+
+        if not utils.verify_password(user_credentials.password, alumni_user.password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Status gate — only Active alumni can log in
+        if alumni_user.status == "Pending":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your alumni registration is pending admin approval. You will receive an email once your account is activated.",
+            )
+
+        if alumni_user.status == "Rejected":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your alumni registration was not approved. Please contact the administration for further information.",
+            )
+
+        if alumni_user.status != "Active":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your alumni account is not active. Please contact the administration.",
+            )
+
+        access_token = utils.create_access_token(
+            data={"sub": alumni_user.email, "role": "alumni", "id": alumni_user.id},
+            expires_delta=timedelta(minutes=utils.ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "role": "alumni",
+            "id": alumni_user.id,
+        }
+
     # Timing Attack Mitigation
     utils.verify_password(user_credentials.password, DUMMY_HASH)
 
@@ -398,12 +449,17 @@ def forgot_password(
         func.lower(models.Student.email) == clean_email
     ).first()
     admin = None
+    alumni_user = None
     if not student:
         admin = db.query(models.Admin).filter(
             func.lower(models.Admin.email) == clean_email
         ).first()
+    if not student and not admin:
+        alumni_user = db.query(models.Alumni).filter(
+            func.lower(models.Alumni.email) == clean_email
+        ).first()
 
-    if student or admin:
+    if student or admin or alumni_user:
         # Invalidate previous unused PASSWORD_RESET OTPs for this email
         db.query(models.OTP).filter(
             func.lower(models.OTP.email) == clean_email,
@@ -551,6 +607,10 @@ def reset_password(
     if not user:
         user = db.query(models.Admin).filter(
             func.lower(models.Admin.email) == clean_email
+        ).first()
+    if not user:
+        user = db.query(models.Alumni).filter(
+            func.lower(models.Alumni.email) == clean_email
         ).first()
 
     if not user:

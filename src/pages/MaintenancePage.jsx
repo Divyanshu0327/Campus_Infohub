@@ -51,7 +51,7 @@ const MaintenancePage = () => {
                     </button>
 
                     <Link
-                        to="/admin/login"
+                        to="/login"
                         className="w-full py-3 px-6 rounded-2xl border border-slate-200 hover:border-amber-300 bg-white hover:bg-amber-50/50 text-slate-700 hover:text-amber-800 font-bold transition-all flex items-center justify-center space-x-2 text-xs"
                     >
                         <Lock size={14} className="text-slate-400" />

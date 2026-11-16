@@ -413,15 +413,28 @@ const LandingPage = () => {
                         </div>
                       )}
                       <h4 className="font-serif font-bold text-slate-900 text-lg mb-1">{a.name}</h4>
-                      <p className="text-sm font-bold text-amber-600 mb-1">{a.course_completed || a.course}</p>
-                      <p className="text-xs font-semibold text-slate-500 mb-4">{sessionStr}</p>
+                      <p className="text-xs font-bold text-amber-600 mb-1 uppercase tracking-wider">{a.course_completed || a.course} ({sessionStr})</p>
+                      
+                      {/* Current Company & Designation */}
+                      <div className="my-3 p-3 bg-amber-50/60 rounded-2xl border border-amber-100/80 w-full text-center">
+                        <p className="text-xs font-bold text-slate-800 flex items-center justify-center gap-1">
+                          <Building2 size={13} className="text-amber-600 shrink-0" />
+                          <span className="truncate">{a.organization || a.current_company || 'Tech Company'}</span>
+                        </p>
+                        <p className="text-[11px] font-semibold text-amber-800 mt-0.5">{a.designation || 'Alumnus Professional'}</p>
+                        {a.previous_company && (
+                          <p className="text-[10px] text-slate-500 font-medium mt-1 border-t border-amber-200/50 pt-1">
+                            Prev: <span className="font-semibold text-slate-700">{a.previous_company}</span>
+                          </p>
+                        )}
+                      </div>
 
                       {a.linkedin ? (
                         <a
                           href={a.linkedin.startsWith('http') ? a.linkedin : `https://${a.linkedin}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-auto px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition"
+                          className="mt-auto w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition border border-blue-100"
                         >
                           LinkedIn &rarr;
                         </a>

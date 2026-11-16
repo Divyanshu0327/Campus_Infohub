@@ -76,6 +76,52 @@ const UserCard = ({ user, onApprove, onReject }) => (
   </motion.div>
 );
 
+// ─── Alumni Pending Card ────────────────────────────────────────────────────────
+const AlumniCard = ({ alumni, onApprove, onReject }) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.9 }}
+    className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-indigo-900/10 transition-all duration-300 relative overflow-hidden"
+  >
+    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+    <div className="relative z-10">
+      <div className="flex justify-between items-start mb-4">
+        <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg bg-gradient-to-br from-indigo-400 to-purple-600">
+          {(alumni.name || '?').charAt(0)}
+        </div>
+        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 border border-indigo-100">
+          ALUMNI
+        </span>
+      </div>
+      <h3 className="text-xl font-serif font-bold text-slate-800 mb-1">{alumni.name}</h3>
+      <p className="text-sm text-slate-500 mb-5 font-medium">{alumni.email}</p>
+      <div className="space-y-2 mb-6 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+        <div className="flex items-center text-sm text-slate-600">
+          <Award size={14} className="mr-2 text-slate-400" />
+          <span className="font-semibold">{alumni.course_completed}</span><span className="mx-1">•</span><span>{alumni.year_of_admission}-{alumni.year_of_completion}</span>
+        </div>
+        <div className="flex items-center text-sm text-slate-600">
+          <GraduationCap size={14} className="mr-2 text-slate-400" />
+          <span className="font-mono text-xs bg-white px-2 py-0.5 rounded border border-slate-200">{alumni.enrollment_number}</span>
+        </div>
+        <div className="flex items-center text-xs text-slate-400">
+          <Clock size={12} className="mr-2" />Requested: {new Date(alumni.created_at || Date.now()).toLocaleDateString()}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => onReject(alumni.id, alumni.name)} className="flex items-center justify-center py-2.5 rounded-xl border border-rose-100 text-rose-600 font-bold text-sm hover:bg-rose-50 transition">
+          <XCircle size={16} className="mr-2" />Reject
+        </button>
+        <button onClick={() => onApprove(alumni.id, alumni.name)} className="flex items-center justify-center py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-teal-600 transition">
+          <CheckCircle size={16} className="mr-2" />Approve
+        </button>
+      </div>
+    </div>
+  </motion.div>
+);
+
 // ─── Post Pending Card ────────────────────────────────────────────────────────
 const PostCard = ({ post, onApprove, onReject }) => (
   <motion.div
@@ -132,6 +178,7 @@ const PostCard = ({ post, onApprove, onReject }) => (
 const AdminPending = () => {
   const [tab, setTab] = useState('users');
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [pendingAlumni, setPendingAlumni] = useState([]);
   const [pendingPosts, setPendingPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,11 +190,13 @@ const AdminPending = () => {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [usersRes, postsRes] = await Promise.all([
+      const [usersRes, alumniRes, postsRes] = await Promise.all([
         API.get('/admin/pending-users'),
+        API.get('/admin/alumni?status_filter=Pending'),
         API.get('/admin/posts/pending'),
       ]);
       setPendingUsers(usersRes.data);
+      setPendingAlumni(alumniRes.data);
       setPendingPosts(postsRes.data);
     } catch (err) {
       console.error('Failed to load pending items', err);
@@ -175,6 +224,29 @@ const AdminPending = () => {
     } catch { toast.error('Failed to reject user'); }
   };
 
+  // ── Alumni Actions ──────────────────────────────────────────
+  const handleApproveAlumni = async (id, name) => {
+    if (!window.confirm(`Approve Alumni Registration for ${name}?`)) return;
+    try {
+      await API.post(`/admin/alumni/${id}/approve`);
+      setPendingAlumni(cur => cur.filter(a => a.id !== id));
+      toast.success(`${name} approved successfully. An email has been sent.`);
+    } catch (err) { 
+      toast.error(err.response?.data?.detail || 'Failed to approve alumni'); 
+    }
+  };
+
+  const handleRejectAlumni = async (id, name) => {
+    if (!window.confirm(`Reject alumni registration for ${name}?`)) return;
+    try {
+      await API.post(`/admin/alumni/${id}/reject`);
+      setPendingAlumni(cur => cur.filter(a => a.id !== id));
+      toast.success(`${name}'s registration rejected. An email has been sent.`);
+    } catch (err) { 
+      toast.error(err.response?.data?.detail || 'Failed to reject alumni'); 
+    }
+  };
+
   // ── Post Actions ──────────────────────────────────────────
   const handleApprovePost = async (id) => {
     try {
@@ -199,13 +271,19 @@ const AdminPending = () => {
     (u.reg_no || u.regNo)?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredAlumni = pendingAlumni.filter(a =>
+    a.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.enrollment_number?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const filteredPosts = pendingPosts.filter(p =>
     p.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleExportExcel = async () => {
-    if (filteredUsers.length === 0 && filteredPosts.length === 0) {
+    if (filteredUsers.length === 0 && filteredAlumni.length === 0 && filteredPosts.length === 0) {
       toast.error('No records available for the selected filters.');
       return;
     }
@@ -272,8 +350,15 @@ const AdminPending = () => {
           active={tab === 'users'}
           onClick={() => setTab('users')}
           icon={Users}
-          label="User Registrations"
+          label="Student Registrations"
           count={pendingUsers.length}
+        />
+        <TabBtn
+          active={tab === 'alumni'}
+          onClick={() => setTab('alumni')}
+          icon={GraduationCap}
+          label="Alumni Registrations"
+          count={pendingAlumni.length}
         />
         <TabBtn
           active={tab === 'posts'}
@@ -304,6 +389,28 @@ const AdminPending = () => {
                   <AnimatePresence>
                     {filteredUsers.map(user => (
                       <UserCard key={user.id} user={user} onApprove={handleApproveUser} onReject={handleRejectUser} />
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {tab === 'alumni' && (
+            <motion.div key="alumni" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              {filteredAlumni.length === 0 ? (
+                <div className="text-center py-24 bg-white rounded-3xl border border-dashed border-slate-200">
+                  <div className="h-20 w-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-400">
+                    <CheckCircle size={32} />
+                  </div>
+                  <p className="text-slate-600 font-bold text-lg">All Caught Up!</p>
+                  <p className="text-slate-400 text-sm mt-1">No pending alumni registrations.</p>
+                </div>
+              ) : (
+                <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <AnimatePresence>
+                    {filteredAlumni.map(alumni => (
+                      <AlumniCard key={alumni.id} alumni={alumni} onApprove={handleApproveAlumni} onReject={handleRejectAlumni} />
                     ))}
                   </AnimatePresence>
                 </motion.div>

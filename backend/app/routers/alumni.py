@@ -3,12 +3,13 @@ import re
 import uuid
 from datetime import datetime, date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
-from .. import models, schemas, database
+from .. import models, schemas, database, utils
 from ..limiter import limiter
+from ..email_service import send_alumni_registration_email
 
 router = APIRouter(prefix="/api/alumni", tags=["Alumni Directory"])
 
@@ -76,6 +77,10 @@ def get_public_alumni(
             course_completed=a.course_completed,
             year_of_admission=a.year_of_admission,
             year_of_completion=a.year_of_completion,
+            organization=a.organization or "Tech Professional",
+            designation=a.designation or "Alumnus",
+            previous_company=getattr(a, 'previous_company', None),
+            current_city=a.current_city or "Delhi NCR",
             professional_picture=a.professional_picture,
             linkedin=a.linkedin
         )
@@ -111,7 +116,10 @@ async def register_alumni(
     willing_to_attend_events: str = Form(...),
     contributions: str = Form(...),  # Comma-separated strings
     other_contribution_specify: Optional[str] = Form(None),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
     professional_picture: Optional[UploadFile] = File(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(database.get_db)
 ):
     """
@@ -122,6 +130,12 @@ async def register_alumni(
     clean_email = email.strip().lower()
     clean_mobile = mobile_number.strip()
     clean_course = course_completed.strip()
+
+    # 0. Password validation
+    if not password or len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long.")
+    if password != confirm_password:
+        raise HTTPException(status_code=400, detail="Password and confirm password do not match.")
 
     # 1. Required text validations
     if not clean_name or not clean_enrollment or not clean_mobile or not clean_email:
@@ -262,7 +276,10 @@ async def register_alumni(
 
         saved_picture_path = f"/uploads/alumni_photos/{safe_filename}"
 
-    # 12. Create Alumni Record
+    # Hash the password for secure storage
+    hashed_password = utils.get_password_hash(password)
+
+    # 12. Create Alumni Record with Pending status (requires admin approval)
     new_alumni = models.Alumni(
         name=clean_name,
         enrollment_number=clean_enrollment,
@@ -289,14 +306,19 @@ async def register_alumni(
         willing_to_attend_events=willing_to_attend_events.strip(),
         contributions=",".join(contrib_list),
         other_contribution_specify=clean_other_contrib,
-        status="Active"
+        password=hashed_password,
+        status="Pending"  # MUST be approved by admin before alumni can log in
     )
 
     db.add(new_alumni)
     db.commit()
     db.refresh(new_alumni)
 
+    # Send registration confirmation email to alumni in background
+    background_tasks.add_task(send_alumni_registration_email, new_alumni.email, new_alumni.name)
+
     return {
-        "message": "Alumni Registration completed successfully!",
-        "alumni_id": new_alumni.id
+        "message": "Alumni registration submitted successfully! Your application is pending admin approval. You will receive an email notification once your account is activated.",
+        "alumni_id": new_alumni.id,
+        "status": "Pending"
     }

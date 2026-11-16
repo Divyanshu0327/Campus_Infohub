@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from datetime import datetime
 from .. import models, schemas, database, utils
 from ..dependencies import get_current_user_from_token, get_current_admin
+from ..email_service import send_alumni_approval_email, send_alumni_rejection_email
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -25,6 +26,7 @@ def get_admin_stats(
     total_students = db.query(models.Student).filter(models.Student.role == "Student").count()
     total_alumni = db.query(models.Student).filter(models.Student.role == "Alumni").count()
     pending_approvals = db.query(models.Student).filter(models.Student.status == "Pending").count()
+    pending_alumni = db.query(models.Alumni).filter(models.Alumni.status == "Pending").count()
     total_posts = db.query(models.Post).count()
     pending_posts = db.query(models.Post).filter(models.Post.is_approved == False).count()
 
@@ -32,6 +34,7 @@ def get_admin_stats(
         "totalStudents": total_students,
         "totalAlumni": total_alumni,
         "pendingApprovals": pending_approvals,
+        "pendingAlumni": pending_alumni,
         "totalPosts": total_posts,
         "pendingPosts": pending_posts,
     }
@@ -837,6 +840,75 @@ def get_alumnus_detail_admin(
     if not alumnus:
         raise HTTPException(status_code=404, detail="Alumnus record not found.")
     return alumnus
+
+
+@router.post("/alumni/{alumni_id}/approve")
+def approve_alumni_registration(
+    alumni_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(database.get_db),
+    current_user=Depends(get_current_admin),
+):
+    """
+    Approve a pending alumni registration.
+    - Sets alumni.status to 'Active'
+    - Sends approval email to the alumni
+    """
+    alumnus = db.query(models.Alumni).filter(models.Alumni.id == alumni_id).first()
+    if not alumnus:
+        raise HTTPException(status_code=404, detail="Alumnus record not found.")
+
+    if alumnus.status == "Active":
+        raise HTTPException(status_code=400, detail="This alumni registration is already approved.")
+
+    if alumnus.status == "Rejected":
+        raise HTTPException(status_code=400, detail="This alumni registration was previously rejected. Change status to Pending before approving.")
+
+    alumnus.status = "Active"
+    db.commit()
+    db.refresh(alumnus)
+
+    # Send approval notification email in background
+    background_tasks.add_task(send_alumni_approval_email, alumnus.email, alumnus.name)
+
+    return {
+        "message": f"Alumni registration for {alumnus.name} has been approved. Activation email sent.",
+        "alumni_id": alumnus.id,
+        "status": alumnus.status
+    }
+
+
+@router.post("/alumni/{alumni_id}/reject")
+def reject_alumni_registration(
+    alumni_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(database.get_db),
+    current_user=Depends(get_current_admin),
+):
+    """
+    Reject a pending alumni registration (soft reject — keeps record for audit trail).
+    - Sets alumni.status to 'Rejected'
+    - Sends rejection notification email
+    """
+    alumnus = db.query(models.Alumni).filter(models.Alumni.id == alumni_id).first()
+    if not alumnus:
+        raise HTTPException(status_code=404, detail="Alumnus record not found.")
+
+    if alumnus.status == "Rejected":
+        raise HTTPException(status_code=400, detail="This alumni registration is already rejected.")
+
+    alumnus.status = "Rejected"
+    db.commit()
+    db.refresh(alumnus)
+
+    # Send rejection notification email in background
+    background_tasks.add_task(send_alumni_rejection_email, alumnus.email, alumnus.name)
+
+    return {
+        "message": f"Alumni registration for {alumnus.name} has been rejected.",
+        "alumni_id": alumnus.id,
+        "status": alumnus.status
+    }
 
 
 @router.put("/alumni/{alumni_id}/status", response_model=schemas.AlumniAdminOut)

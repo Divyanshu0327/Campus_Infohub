@@ -84,6 +84,8 @@ const AlumniRegisterPage = () => {
     willing_to_attend_events: 'Yes',
     contributions: [],
     other_contribution_specify: '',
+    password: '',
+    confirm_password: '',
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -92,6 +94,7 @@ const AlumniRegisterPage = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(4);
 
   // Dynamic minimum and maximum completion years derived from selected admission year
   const admYearNum = parseInt(formData.year_of_admission) || maxAdmissionYear;
@@ -190,6 +193,13 @@ const AlumniRegisterPage = () => {
       return 'Please enter a valid email address.';
     }
 
+    if (!formData.password || formData.password.length < 6) {
+      return 'Password must be at least 6 characters.';
+    }
+    if (formData.password !== formData.confirm_password) {
+      return 'Passwords do not match.';
+    }
+
     if (!formData.date_of_birth) return 'Date of Birth is required.';
 
     // Course Validation
@@ -278,6 +288,8 @@ const AlumniRegisterPage = () => {
       data.append('enrollment_number', formData.enrollment_number.trim());
       data.append('mobile_number', formData.mobile_number.trim());
       data.append('email', formData.email.trim().toLowerCase());
+      data.append('password', formData.password);
+      data.append('confirm_password', formData.confirm_password);
       data.append('date_of_birth', formData.date_of_birth);
       data.append('course_completed', formData.course_completed);
       data.append('year_of_admission', formData.year_of_admission.toString());
@@ -310,9 +322,24 @@ const AlumniRegisterPage = () => {
 
       setSubmittedSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Start countdown then redirect to login
+      let seconds = 4;
+      setCountdown(seconds);
+      const timer = setInterval(() => {
+        seconds -= 1;
+        setCountdown(seconds);
+        if (seconds <= 0) {
+          clearInterval(timer);
+          navigate('/login');
+        }
+      }, 1000);
     } catch (err) {
       console.error(err);
-      const detail = err.response?.data?.detail || 'Registration failed. An alumni record with this email or enrollment number may already exist.';
+      let detail = err.response?.data?.detail || 'Registration failed. An alumni record with this email or enrollment number may already exist.';
+      if (Array.isArray(detail)) {
+        // FastAPI 422 validation error
+        detail = detail.map(d => `${d.loc.join('.')} - ${d.msg}`).join(', ');
+      }
       setErrorMsg(detail);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
@@ -322,26 +349,76 @@ const AlumniRegisterPage = () => {
 
   // ── Success State ──────────────────────────────────────────────────────────
 
-  if (submittedSuccess) {
-    return (
-      <div className="min-h-[85vh] flex items-center justify-center p-6 bg-gradient-to-b from-amber-50/50 to-white">
-        <div className="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-lg text-center border border-slate-100">
-          <div className="h-20 w-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md">
-            <CheckCircle2 size={44} />
+  // Success Modal Overlay – rendered on top of the form
+  const SuccessModal = submittedSuccess ? (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+    >
+      <div
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md text-center p-10 border border-slate-100 animate-fadeInUp"
+        style={{ animation: 'fadeInUp 0.35s ease forwards' }}
+      >
+        {/* Success Icon */}
+        <div className="h-24 w-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg ring-4 ring-emerald-200">
+          <CheckCircle2 size={52} />
+        </div>
+
+        {/* Title */}
+        <h2 className="text-3xl font-serif font-extrabold text-slate-900 mb-2">
+          Registration Submitted!
+        </h2>
+
+        {/* Pill badge */}
+        <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-4 py-1.5 rounded-full mb-5 tracking-wide uppercase">
+          Pending Admin Approval
+        </span>
+
+        {/* Message */}
+        <p className="text-slate-600 leading-relaxed mb-2 text-sm">
+          Your alumni registration has been <strong>successfully submitted</strong>.
+          Your account is currently pending admin review.
+        </p>
+        <p className="text-slate-600 leading-relaxed mb-6 text-sm">
+          Once approved, you will receive an email notification and will be able to log in to the portal.
+        </p>
+
+        {/* Countdown */}
+        <div className="flex items-center justify-center gap-2 mb-7">
+          <div className="h-10 w-10 rounded-full bg-amber-500 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-amber-500/30">
+            {countdown}
           </div>
-          <h2 className="text-3xl font-serif font-bold text-slate-900 mb-3">Welcome to the Alumni Directory!</h2>
-          <p className="text-slate-600 mb-8 leading-relaxed">
-            Your alumni registration has been successfully submitted. Thank you for staying connected with your alma mater!
-          </p>
-          <div className="flex flex-col gap-3">
-            <Link to="/" className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold rounded-xl shadow-lg hover:from-amber-600 hover:to-amber-700 transition text-center">
-              Return to Landing Page
-            </Link>
-          </div>
+          <span className="text-sm text-slate-500 font-medium">
+            Redirecting to Login in {countdown} second{countdown !== 1 ? 's' : ''}…
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col gap-3">
+          <Link
+            to="/login"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold rounded-xl shadow-lg hover:from-amber-600 hover:to-amber-700 transition-all text-center text-sm"
+          >
+            Go to Login Now
+          </Link>
+          <Link
+            to="/"
+            className="w-full py-3 px-4 bg-white border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition text-center text-sm"
+          >
+            Return to Home
+          </Link>
         </div>
       </div>
-    );
-  }
+
+      {/* Inline keyframe animation */}
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(24px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)    scale(1);    }
+        }
+      `}</style>
+    </div>
+  ) : null;
 
   const handleBackToHome = () => {
     const isDirty = Boolean(
@@ -367,6 +444,9 @@ const AlumniRegisterPage = () => {
   const isHomeMakerOrUnemployed = formData.profession === "Home Maker" || formData.profession === "Unemployed";
 
   return (
+    <>
+      {/* Success Popup Modal — rendered as fixed overlay when registration succeeds */}
+      {SuccessModal}
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         
@@ -477,6 +557,28 @@ const AlumniRegisterPage = () => {
                   required
                   value={formData.date_of_birth}
                   onChange={e => setFormData({ ...formData, date_of_birth: e.target.value })}
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 font-medium text-slate-800 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="block text-sm font-bold text-slate-700 mb-2">6. Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Min 6 characters"
+                  value={formData.password}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 font-medium text-slate-800 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="block text-sm font-bold text-slate-700 mb-2">7. Confirm Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Re-enter password"
+                  value={formData.confirm_password}
+                  onChange={e => setFormData({ ...formData, confirm_password: e.target.value })}
                   className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 font-medium text-slate-800 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition"
                 />
               </div>
@@ -601,7 +703,7 @@ const AlumniRegisterPage = () => {
 
 
           {/* SECTION 3: Professional Information (Equal-Width 3-Column Grid) */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+          <div id="section-professional" className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
               <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
                 <Briefcase size={20} />
@@ -670,7 +772,7 @@ const AlumniRegisterPage = () => {
 
 
           {/* SECTION 4: Residence (Equal-Width 3-Column Grid) */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+          <div id="section-residence" className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
               <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
                 <MapPin size={20} />
@@ -722,7 +824,7 @@ const AlumniRegisterPage = () => {
 
 
           {/* SECTION 5: Professional & Social Information */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+          <div id="section-picture" className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
               <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
                 <Share2 size={20} />
@@ -834,7 +936,7 @@ const AlumniRegisterPage = () => {
 
 
           {/* SECTION 6: Alumni Engagement */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+          <div id="section-engagement" className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
               <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
                 <HeartHandshake size={20} />
@@ -935,6 +1037,7 @@ const AlumniRegisterPage = () => {
 
       </div>
     </div>
+    </>
   );
 };
 

@@ -82,7 +82,7 @@ function App() {
          <Route path="/login" element={<LoginPage />} />
          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
          <Route path="/verify-email" element={<VerifyEmailPage />} />
-         <Route path="/admin/login" element={<AdminLoginPage />} />
+         <Route path="/admin/login" element={<Navigate to="/login" replace />} />
          <Route path="/register" element={<Navigate to="/alumni/register" replace />} />
          <Route path="/alumni/register" element={<AlumniRegisterPage />} />
       </Route>

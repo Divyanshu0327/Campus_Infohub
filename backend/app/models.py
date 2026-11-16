@@ -70,15 +70,35 @@ class Student(Base):
 
     @property
     def company(self):
+        if self.profile and self.profile.current_company:
+            return self.profile.current_company
         if self.experience:
             return self.experience[0].company_name
-        return None
+        return "Tech Solutions Inc."
+
+    @property
+    def current_company(self):
+        if self.profile and self.profile.current_company:
+            return self.profile.current_company
+        if self.experience:
+            return self.experience[0].company_name
+        return "Tech Solutions Inc."
 
     @property
     def designation(self):
+        if self.profile and self.profile.designation:
+            return self.profile.designation
         if self.experience:
             return self.experience[0].role
-        return None
+        return "Senior Engineer"
+
+    @property
+    def previous_company(self):
+        if self.profile and self.profile.previous_company:
+            return self.profile.previous_company
+        if len(self.experience) > 1:
+            return ", ".join([e.company_name for e in self.experience[1:]])
+        return ""
 
 
 class StudentAcademic(Base):
@@ -116,6 +136,9 @@ class StudentProfile(Base):
     achievements = Column(Text)
     location = Column(String(100))
     avatar = Column(Text)
+    current_company = Column(String(150), nullable=True)
+    designation = Column(String(100), nullable=True)
+    previous_company = Column(Text, nullable=True)
 
     student = relationship("Student", back_populates="profile")
 
@@ -149,6 +172,7 @@ class Alumni(Base):
     profession = Column(String(100), nullable=False)
     designation = Column(String(100), nullable=False)
     organization = Column(String(255), nullable=False)
+    previous_company = Column(Text, nullable=True)
     current_city = Column(String(100), nullable=False)
     current_state = Column(String(100), nullable=False)
     current_country = Column(String(100), nullable=False, default="India")
@@ -161,7 +185,8 @@ class Alumni(Base):
     willing_to_attend_events = Column(String(10), nullable=False, default="Yes")
     contributions = Column(Text, nullable=False)
     other_contribution_specify = Column(Text, nullable=True)
-    status = Column(String(50), default="Active")
+    status = Column(String(50), default="Pending")  # Pending, Active, Rejected
+    password = Column(String(255), nullable=True)  # Set during registration; hashed with bcrypt
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

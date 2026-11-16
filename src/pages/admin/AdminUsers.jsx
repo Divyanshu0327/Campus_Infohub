@@ -174,10 +174,15 @@ const AdminUsers = () => {
       if (photoFile) {
         fd.append('professional_picture', photoFile);
       }
+      
+      // The alumni/register endpoint requires a password. Admin creations get a default strong password.
+      fd.append('password', 'Welcome@Campus!2026');
+      fd.append('confirm_password', 'Welcome@Campus!2026');
 
       await API.post('/alumni/register', fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+
 
       toast.success('Alumnus record created successfully!');
       setIsAddModalOpen(false);

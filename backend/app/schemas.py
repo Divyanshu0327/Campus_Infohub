@@ -99,6 +99,9 @@ class UserUpdate(BaseModel):
     skills: Optional[str] = None
     location: Optional[str] = None
     avatar: Optional[str] = None
+    current_company: Optional[str] = None
+    designation: Optional[str] = None
+    previous_company: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: str
@@ -122,6 +125,9 @@ class User(UserBase):
     skills: Optional[str] = None
     location: Optional[str] = None
     avatar: Optional[str] = None
+    current_company: Optional[str] = None
+    designation: Optional[str] = None
+    previous_company: Optional[str] = None
     email_verified: Optional[bool] = False
     
     # For flattening profile fields from relationship if needed, or if we added columns to Student?
@@ -686,6 +692,10 @@ class AlumniPublicOut(BaseModel):
     course_completed: str
     year_of_admission: int
     year_of_completion: int
+    organization: Optional[str] = None
+    designation: Optional[str] = None
+    previous_company: Optional[str] = None
+    current_city: Optional[str] = None
     professional_picture: Optional[str] = None
     linkedin: Optional[str] = None
 

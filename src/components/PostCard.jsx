@@ -153,11 +153,7 @@ const PostCard = ({ post }) => {
                 className="flex items-center space-x-2 px-3 py-2 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors"
             >
                 <MessageCircle size={18} />
-                <span className="text-sm font-medium">{post.comments?.length || 0}</span>
-            </button>
-            <button onClick={handleShare} className="flex items-center space-x-2 px-3 py-2 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors">
-                <Share2 size={18} />
-                <span className="text-sm font-medium">Share</span>
+                <span className="text-sm font-medium">{post.comments?.length || 0} Comments</span>
             </button>
         </div>
 
